@@ -144,7 +144,8 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--cache_requests",
         type=str,
-        default=None,
+        # default=None,
+        default="true",
         choices=["true", "refresh", "delete"],
         help="Speed up evaluation by caching the building of dataset requests. `None` if not caching.",
     )
@@ -227,6 +228,18 @@ def setup_parser() -> argparse.ArgumentParser:
         "--trust_remote_code",
         action="store_true",
         help="Sets trust_remote_code to True to execute code to create HF Datasets from the Hub",
+    )
+
+    parser.add_argument(
+        "--eval_on_all_samples",
+        action="store_true",
+        help="If True, evaluate on all samples in the dataset, not just the test set. This is useful for debugging and development.",
+    )
+
+    parser.add_argument(
+        "--no_overwrite",
+        action="store_true",
+        help="If True, do not overwrite the output file if it already exists.",
     )
 
     return parser
@@ -313,9 +326,16 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
             raise FileExistsError(f"File already exists at {path}")
         output_path_file = path.joinpath(DEFAULT_RESULTS_FILE)
         if output_path_file.is_file():
-            eval_logger.warning(
-                f"File {output_path_file} already exists. Results will be overwritten."
-            )
+            if args.no_overwrite:
+                # raise FileExistsError(
+                #     f"File {output_path_file} already exists. Results will not be overwritten."
+                # )
+                # move file to file.bkp
+                output_path_file.rename(output_path_file.with_suffix(".bkp"))
+            else:
+                eval_logger.warning(
+                    f"File {output_path_file} already exists. Results will be overwritten."
+                )
         # if path json then get parent dir
         elif path.suffix in (".json", ".jsonl"):
             output_path_file = path
@@ -359,6 +379,7 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
         random_seed=args.seed[0],
         numpy_random_seed=args.seed[1],
         torch_random_seed=args.seed[2],
+        eval_on_all_samples=args.eval_on_all_samples,
         **request_caching_args,
     )
 

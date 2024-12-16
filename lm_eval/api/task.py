@@ -67,9 +67,9 @@ class TaskConfig(dict):
     training_split: Optional[str] = None
     validation_split: Optional[str] = None
     test_split: Optional[str] = None
-    fewshot_split: Optional[
-        str
-    ] = None  # TODO: assert that this not None if num_fewshot > 0. (?) assert if this is same split as one evaling (?)
+    fewshot_split: Optional[str] = (
+        None  # TODO: assert that this not None if num_fewshot > 0. (?) assert if this is same split as one evaling (?)
+    )
     # formatting / prompting options.
     # see docs/advanced_task_guide.md for more info
     process_docs: Optional[Callable] = None
@@ -92,9 +92,9 @@ class TaskConfig(dict):
     filter_list: Optional[Union[str, list]] = None
     should_decontaminate: bool = False
     doc_to_decontamination_query: Optional[str] = None
-    metadata: Optional[
-        dict
-    ] = None  # by default, not used in the code. allows for users to pass arbitrary info to tasks
+    metadata: Optional[dict] = (
+        None  # by default, not used in the code. allows for users to pass arbitrary info to tasks
+    )
 
     def __post_init__(self) -> None:
         if self.generation_kwargs is not None:
@@ -260,13 +260,21 @@ class Task(abc.ABC):
             - `datasets.DownloadMode.FORCE_REDOWNLOAD`
                 Fresh download and fresh dataset.
         """
-        self.dataset = datasets.load_dataset(
-            path=self.DATASET_PATH,
-            name=self.DATASET_NAME,
-            data_dir=data_dir,
-            cache_dir=cache_dir,
-            download_mode=download_mode,
-        )
+        import os
+
+        # import ipdb
+
+        # ipdb.set_trace()
+        if os.path.exists(self.DATASET_PATH) and os.path.isdir(self.DATASET_PATH):
+            self.dataset = datasets.load_from_disk(self.DATASET_PATH)
+        else:
+            self.dataset = datasets.load_dataset(
+                path=self.DATASET_PATH,
+                name=self.DATASET_NAME,
+                data_dir=data_dir,
+                cache_dir=cache_dir,
+                download_mode=download_mode,
+            )
 
     @property
     def config(self) -> TaskConfig:
@@ -370,6 +378,7 @@ class Task(abc.ABC):
         world_size=None,
         cache_requests=False,
         rewrite_requests_cache=False,
+        eval_on_all_samples=False,
     ) -> None:
         """Build a set of Instances for a task, and store them in task.instances"""
 
@@ -405,7 +414,12 @@ class Task(abc.ABC):
             limit = None
 
         doc_id_docs = list(
-            self.doc_iterator(rank=rank, limit=limit, world_size=world_size)
+            self.doc_iterator(
+                rank=rank,
+                limit=limit,
+                world_size=world_size,
+                eval_on_all_samples=eval_on_all_samples,
+            )
         )
 
         num_docs = len(doc_id_docs)
@@ -644,11 +658,28 @@ class Task(abc.ABC):
             )
 
     def doc_iterator(
-        self, *, rank: int = 0, limit: Union[int, None] = None, world_size: int = 1
+        self,
+        *,
+        rank: int = 0,
+        limit: Union[int, None] = None,
+        world_size: int = 1,
+        eval_on_all_samples=False,
     ) -> Iterator[Tuple[int, Any]]:
         limit = int(limit) if limit else None
+        if eval_on_all_samples:
+            all_docs = []
+            if self.has_training_docs():
+                all_docs.extend(self.training_docs())
+            if self.has_validation_docs():
+                all_docs.extend(self.validation_docs())
+            if self.has_test_docs():
+                all_docs.extend(self.test_docs())
+            eval_docs = all_docs
+        else:
+            eval_docs = self.eval_docs
+
         doc_iterator = utils.create_iterator(
-            enumerate(self.eval_docs),
+            enumerate(eval_docs),
             rank=int(rank),
             limit=limit,
             world_size=int(world_size),
@@ -868,11 +899,20 @@ class ConfigurableTask(Task):
                     )
 
     def download(self, dataset_kwargs: Optional[Dict[str, Any]] = None) -> None:
-        self.dataset = datasets.load_dataset(
-            path=self.DATASET_PATH,
-            name=self.DATASET_NAME,
-            **dataset_kwargs if dataset_kwargs is not None else {},
-        )
+        import os
+
+        # import ipdb
+
+        # ipdb.set_trace()
+        if os.path.exists(self.DATASET_PATH) and os.path.isdir(self.DATASET_PATH):
+            self.dataset = datasets.load_from_disk(self.DATASET_PATH)
+        else:
+
+            self.dataset = datasets.load_dataset(
+                path=self.DATASET_PATH,
+                name=self.DATASET_NAME,
+                **dataset_kwargs if dataset_kwargs is not None else {},
+            )
 
     def has_training_docs(self) -> bool:
         if self.config.training_split is not None:
@@ -1342,7 +1382,9 @@ class ConfigurableTask(Task):
                             predictions=[result],
                             **self._metric_fn_kwargs[metric],
                         )
-                    except TypeError:  # needed for now in order to use a different interface between our own metrics and HF Evaluate metrics
+                    except (
+                        TypeError
+                    ):  # needed for now in order to use a different interface between our own metrics and HF Evaluate metrics
                         result_score = self._metric_fn_list[metric]([gold, result])
                     if isinstance(result_score, dict):
                         # TODO: this handles the case where HF evaluate returns a dict.

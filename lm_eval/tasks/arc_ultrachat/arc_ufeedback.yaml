@@ -1,0 +1,24 @@
+group:
+  - ai2_arc
+task: arc_ufeedback
+dataset_path: /kuacc/users/shamdan17/hpc_run/work/play/data/arc_ufeedback
+# dataset_name: ARC-Challenge-Plus
+output_type: multiple_choice
+training_split: train
+validation_split: validation
+test_split: testplus
+doc_to_text: "Question: {{question}}\nAnswer:"
+doc_to_target: "{{choices.label.index(answerKey)}}"
+doc_to_choice: "{{choices.text}}"
+should_decontaminate: true
+doc_to_decontamination_query: "Question: {{question}}\nAnswer:"
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
+

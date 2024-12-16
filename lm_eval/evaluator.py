@@ -55,6 +55,7 @@ def simple_evaluate(
     random_seed: int = 0,
     numpy_random_seed: int = 1234,
     torch_random_seed: int = 1234,
+    eval_on_all_samples: bool = False,
 ):
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -239,6 +240,7 @@ def simple_evaluate(
         write_out=write_out,
         log_samples=log_samples,
         verbosity=verbosity,
+        eval_on_all_samples=eval_on_all_samples,
     )
 
     if lm.rank == 0:
@@ -281,6 +283,7 @@ def evaluate(
     bootstrap_iters: Optional[int] = 100000,
     write_out: bool = False,
     log_samples: bool = True,
+    eval_on_all_samples: bool = False,
     verbosity: str = "INFO",
 ):
     """Instantiate and evaluate a model on a list of tasks.
@@ -302,6 +305,7 @@ def evaluate(
     """
 
     eval_logger.setLevel(getattr(logging, f"{verbosity}"))
+    # f = open(f"{lm.rank}_samples.txt", "w")
 
     # tracks all Instances/requests a model must generate output on.
     requests = defaultdict(list)
@@ -317,6 +321,14 @@ def evaluate(
             for task_output in eval_tasks
         ):
             raise ValueError("log_samples must be True for 'bypass' metric-only tasks")
+    # f.write(
+    #     "lm.rank: "
+    #     + str(lm.rank)
+    #     + "\n"
+    #     + "lm.world_size: "
+    #     + str(lm.world_size)
+    #     + "\n"
+    # )
     for task_output in eval_tasks:
         task: Task = task_output.task
         limit = get_sample_size(task, limit)
@@ -326,6 +338,7 @@ def evaluate(
             world_size=lm.world_size,
             cache_requests=cache_requests,
             rewrite_requests_cache=rewrite_requests_cache,
+            eval_on_all_samples=eval_on_all_samples,
         )
         eval_logger.debug(
             f"Task: {task_output.task_name}; number of requests on this rank: {len(task.instances)}"
@@ -336,7 +349,11 @@ def evaluate(
         # aggregate Instances by LM method requested to get output.
         for instance in task.instances:
             reqtype = instance.request_type
+            # print(reqtype)
+            # f.write(reqtype + "\n")
             requests[reqtype].append(instance)
+            # print(instance)
+            # f.write(str(instance) + "\n")
 
         if lm.world_size > 1:
             instances_rnk = torch.tensor(len(task._instances), device=lm.device)
@@ -369,9 +386,20 @@ def evaluate(
 
         # run requests through model
         resps = getattr(lm, reqtype)(cloned_reqs)
+        # f.write(
+        #     "=" * 20
+        #     + "\n"
+        #     + str(resps)
+        #     + "\n"
+        #     + str(cloned_reqs)
+        #     + "\n"
+        #     + "=" * 20
+        #     + "\n"
+        # )
 
         # put responses from model into a list of length K for each request.
         for x, req in zip(resps, cloned_reqs):
+            # f.write("x: " + str(x) + "\n")
             req.resps.append(x)
 
         if lm.world_size > 1:
@@ -398,7 +426,7 @@ def evaluate(
         # iterate over different filters used
         for filter_key in task.instances[0].filtered_resps.keys():
             doc_iterator = task.doc_iterator(
-                rank=RANK, limit=limit, world_size=WORLD_SIZE
+                rank=RANK, limit=limit, world_size=WORLD_SIZE, eval_on_all_samples=eval_on_all_samples
             )
             for doc_id, doc in doc_iterator:
                 requests = instances_by_doc_id[doc_id]
@@ -434,6 +462,9 @@ def evaluate(
                     object_gather_list=full_samples,
                     dst=0,
                 )
+                # print(RANK, task_output.logged_samples)
+
+                # f.write(str(task_output.logged_samples))
 
                 if RANK == 0:
                     task_output.logged_samples = list(
