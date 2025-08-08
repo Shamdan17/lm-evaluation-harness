@@ -994,11 +994,16 @@ class ConfigurableTask(Task):
                 **(self.config.metadata or {}), **(self.config.dataset_kwargs or {})
             )
         else:
-            self.dataset = datasets.load_dataset(
-                path=self.DATASET_PATH,
-                name=self.DATASET_NAME,
-                **dataset_kwargs if dataset_kwargs is not None else {},
-            )
+            try:
+                self.dataset = datasets.load_dataset(
+                    path=self.DATASET_PATH,
+                    name=self.DATASET_NAME,
+                    **dataset_kwargs if dataset_kwargs is not None else {},
+                )
+            except:
+                self.dataset = datasets.load_from_disk(
+                    self.DATASET_PATH,
+                )
 
     def has_training_docs(self) -> bool:
         if self.config.training_split is not None:
