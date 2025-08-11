@@ -1,15 +1,16 @@
 tag:
   - ai2_arc
 task: az_arc_challenge_chat
-dataset_path: allenai/ai2_arc
-dataset_name: ARC-Challenge
+dataset_path: az/arc_az
+dataset_kwargs:  
+  data_dir: az/arc_az
 output_type: generate_until
-training_split: train
+training_split: null
 validation_split: validation
 test_split: test
-fewshot_split: train
+fewshot_split: null
 doc_to_text: 'Aşağıdakı sualı və dörd namizəd cavabını (A, B, C və D) nəzərə alaraq, ən yaxşı cavabı seçin.\nSual: {{question.strip()}}\nA. {{choices.text[0]}}\nB. {{choices.text[1]}}\nC. {{choices.text[2]}}{% if choices.text|length > 3 %}\nD. {{choices.text[3]}}{% endif %}\nCavabınız "Ən yaxşı cavab [the_answer_letter]" ilə bitməlidir, burada [the_answer_letter] A, B, C və ya D hərflərindən biridir.'
-gen_prefix: 'The best answer is'
+gen_prefix: 'Ən yaxşı cavab: '
 fewshot_delimiter: "\n\n"
 doc_to_target: "{{ 'ABCD'[answerKey|int - 1] if answerKey|string in '1234' else answerKey }}"
 num_fewshot: 0
@@ -24,10 +25,14 @@ metric_list:
     higher_is_better: true
     ignore_case: true
     ignore_punctuation: true
+    regexes_to_ignore:
+      - "Ən yaxşı cavab"
 filter_list:
   - name: remove_whitespace
     filter:
       - function: remove_whitespace
+      - function: "regex"
+        regex_pattern: "(\\-?[0-5]|[ABCDE])"
       - function: take_first
 metadata:
   version: 1.0

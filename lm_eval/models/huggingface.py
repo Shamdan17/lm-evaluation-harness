@@ -12,12 +12,12 @@ import jinja2
 import torch
 import torch.nn.functional as F
 import transformers
-from accelerate import (
-    Accelerator,
-    InitProcessGroupKwargs,
-    find_executable_batch_size,
-)
-from accelerate.utils import get_max_memory
+# from accelerate import (
+#     Accelerator,
+#     InitProcessGroupKwargs,
+#     find_executable_batch_size,
+# )
+# from accelerate.utils import get_max_memory
 from huggingface_hub import HfApi
 from packaging import version
 from packaging.version import parse as vparse

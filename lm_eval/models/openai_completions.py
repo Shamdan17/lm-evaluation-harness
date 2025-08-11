@@ -31,8 +31,12 @@ class LocalCompletionsAPI(TemplateAPI):
         gen_kwargs: Optional[dict] = None,
         seed: int = 1234,
         eos=None,
+        base_url: str = None,
         **kwargs,
     ) -> dict:
+        if base_url is not None and "hyperbee" in base_url:
+            gen_kwargs.pop("max_new_tokens", None)
+            gen_kwargs.pop("max_completion_tokens", None)
         if generate:
             gen_kwargs.pop("do_sample", False)
             if "max_tokens" in gen_kwargs:
@@ -266,8 +270,16 @@ class OpenAIChatCompletion(LocalChatCompletion):
         gen_kwargs: dict = None,
         seed=1234,
         eos="<|endoftext|>",
+        base_url: str = None,
         **kwargs,
     ) -> dict:
+
+        if base_url is not None and "hyperbee" in base_url:
+            modded=True
+            gen_kwargs.pop("max_new_tokens", None)
+            gen_kwargs.pop("max_completion_tokens", None)
+        else:
+            modded=False
         assert type(messages) is not str, (
             "chat-completions require the --apply_chat_template flag."
         )
@@ -289,6 +301,9 @@ class OpenAIChatCompletion(LocalChatCompletion):
             "seed": seed,
             **gen_kwargs,
         }
+        if modded:
+            output.pop("max_tokens", None)
+            output.pop("max_completion_tokens", None)
         if "o1" in self.model:
             output.pop("stop")
             output["temperature"] = 1

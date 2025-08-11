@@ -429,6 +429,7 @@ class TemplateAPI(TemplateLM):
                     gen_kwargs=gen_kwargs,
                     seed=self._seed,
                     eos=self.eos_string,
+                    base_url=self.base_url,
                     **kwargs,
                 ),
                 headers=self.header,
@@ -436,8 +437,19 @@ class TemplateAPI(TemplateLM):
             )
             if not response.ok:
                 eval_logger.warning(
-                    f"API request failed with error message: {response.text}. Retrying..."
+                    f"AAAAPI request failed with error message: {response.text}. Retrying..."
                 )
+                from pprint import pprint
+                pprint(self._create_payload(
+                    self.create_message(messages),
+                    generate=generate,
+                    gen_kwargs=gen_kwargs,
+                    seed=self._seed,
+                    eos=self.eos_string,
+                    base_url=self.base_url,
+                    **kwargs,
+                ))
+
             response.raise_for_status()
             return response.json()
         except RetryError:
@@ -465,6 +477,7 @@ class TemplateAPI(TemplateLM):
             generate=generate,
             gen_kwargs=gen_kwargs,
             seed=self._seed,
+            base_url=self.base_url,
             **kwargs,
         )
         cache_method = "generate_until" if generate else "loglikelihood"

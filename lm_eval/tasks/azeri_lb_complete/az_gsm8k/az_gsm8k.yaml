@@ -1,14 +1,14 @@
 tag:
   - math_word_problems
 task: az_gsm8k
-dataset_path: /arf/home/shamdan/az/gsm8k_az
+dataset_path: az/gsm8k_az
 dataset_kwargs:  
-  data_dir: /arf/home/shamdan/az/gsm8k_az
+  data_dir: az/gsm8k_az
 output_type: generate_until
 training_split: null
 fewshot_split: null
 test_split: test
-doc_to_text: "Sual: {{question}}\nCavab:"
+doc_to_text: "Sual: {{question}}\n Cavab üzərində fikirləşdikdən sonra, lütfən, 4 hash işarəsi ilə cavab verin, #### və ardınca yekun cavab verin. Cavab:"
 doc_to_target: "{{answer}}" #" {{answer.split('### ')[-1].rstrip()}}"
 metric_list:
   - metric: exact_match

@@ -1,9 +1,9 @@
 tag:
   - ai2_arc
 task: az_arc_challenge
-dataset_path: /arf/home/shamdan/az/arc_az
+dataset_path: az/arc_az
 dataset_kwargs:  
-  data_dir: /arf/home/shamdan/az/arc_az
+  data_dir: az/arc_az
 output_type: multiple_choice
 training_split: null
 validation_split: validation
